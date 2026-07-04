@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Session Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg: #12151a;
+    --card: #1b2028;
+    --ink: #e9e7df;
+    --muted: #8b93a1;
+    --faint: #565f6e;
+    --brass: #c9a86b;
+    --brass-dim: #8a7550;
+    --line: rgba(233,231,223,0.08);
+    --line-strong: rgba(233,231,223,0.16);
+    --red: #c96b6b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:64px 24px 120px;}
+  a{color:inherit;}
+
+  /* ---------- shared bits ---------- */
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    color:var(--brass);
+    text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(34px, 6vw, 52px);
+    line-height:1.05;
+    margin:0 0 14px;
+    letter-spacing:-0.01em;
+  }
+  header{margin-bottom:56px;position:relative;}
+  header p{color:var(--muted);font-size:15px;line-height:1.6;max-width:46ch;margin:0;}
+
+  .footlink{
+    display:inline-block;
+    margin-top:56px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--faint);
+    text-decoration:none;
+    border-bottom:1px solid transparent;
+  }
+  .footlink:hover{color:var(--brass);border-color:var(--brass-dim);}
+
+  button.primary{
+    background:var(--brass);color:#191510;border:none;
+    padding:11px 20px;border-radius:6px;font-weight:600;
+    font-size:14px;cursor:pointer;font-family:'Inter',sans-serif;
+  }
+  button.primary:hover{background:#d8b87e;}
+  button.ghost{
+    background:none;border:1px solid var(--line-strong);color:var(--muted);
+    padding:11px 18px;border-radius:6px;font-size:14px;cursor:pointer;
+  }
+  button.ghost:hover{color:var(--ink);border-color:var(--ink);}
+
+  /* ---------- public log ---------- */
+  .log{border-top:1px solid var(--line);}
+  .entry{
+    display:grid;grid-template-columns:56px 1fr auto;gap:18px;
+    align-items:start;padding:22px 0;border-bottom:1px solid var(--line);
+  }
+  .num{font-family:'JetBrains Mono', monospace;color:var(--faint);font-size:13px;padding-top:3px;}
+  .entry .body h3{font-family:'Fraunces', serif;font-weight:600;font-size:19px;margin:0 0 4px;}
+  .entry .body a.link{color:var(--brass);text-decoration:none;font-size:14px;border-bottom:1px solid var(--brass-dim);}
+  .entry .body a.link:hover{color:#d8b87e;}
+  .entry .body .note{color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5;}
+  .embed-wrap{
+    position:relative;width:100%;padding-top:56.25%;
+    margin-top:10px;border-radius:8px;overflow:hidden;
+    background:#0b0d10;border:1px solid var(--line);
+  }
+  .embed-wrap iframe{
+    position:absolute;top:0;left:0;width:100%;height:100%;border:0;
+  }
+  .meta{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--faint);text-align:right;white-space:nowrap;padding-top:4px;}
+  .del{background:none;border:none;color:var(--faint);cursor:pointer;font-size:12px;margin-top:8px;font-family:'JetBrains Mono', monospace;}
+  .del:hover{color:var(--red);}
+
+  .empty{text-align:center;padding:80px 20px;color:var(--faint);}
+  .empty .glyph{font-size:28px;margin-bottom:14px;opacity:.5;}
+  .empty p{font-size:14px;max-width:34ch;margin:0 auto;line-height:1.6;}
+
+  /* ---------- admin landing (login) ---------- */
+  #view-login{display:none;}
+  #view-login .wrap{
+    max-width:400px;
+    min-height:100vh;
+    display:flex;flex-direction:column;justify-content:center;
+    padding-top:0;padding-bottom:0;
+  }
+  .login-card{
+    border:1px solid var(--line-strong);
+    border-radius:10px;
+    padding:36px 32px;
+    background:var(--card);
+  }
+  .login-card .eyebrow{margin-bottom:10px;}
+  .login-card h1{font-size:28px;margin-bottom:8px;}
+  .login-card p{color:var(--muted);font-size:14px;margin:0 0 24px;line-height:1.5;}
+  .login-card input{
+    width:100%;background:#101318;border:1px solid var(--line-strong);
+    color:var(--ink);padding:12px 14px;border-radius:6px;font-size:14px;
+    font-family:'JetBrains Mono', monospace;margin-bottom:14px;
+  }
+  .login-card input:focus{outline:none;border-color:var(--brass-dim);}
+  .login-error{color:var(--red);font-size:13px;margin:-6px 0 14px;display:none;}
+  .login-card button.primary{width:100%;}
+
+  /* ---------- admin dashboard ---------- */
+  #view-dashboard{display:none;}
+  .dash-top{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    margin-bottom:40px;
+  }
+  .dash-top .exit{
+    font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--faint);
+    text-decoration:none;border:1px solid var(--line-strong);
+    padding:8px 14px;border-radius:6px;
+  }
+  .dash-top .exit:hover{color:var(--ink);border-color:var(--ink);}
+
+  .panel-card{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:24px;margin-bottom:40px;
+  }
+  .panel-card h2{
+    font-family:'JetBrains Mono', monospace;font-size:12px;letter-spacing:0.1em;
+    text-transform:uppercase;color:var(--brass);margin:0 0 18px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .field input, .field textarea{
+    width:100%;background:#101318;border:1px solid var(--line-strong);
+    color:var(--ink);padding:10px 12px;border-radius:6px;
+    font-family:'Inter', sans-serif;font-size:14px;
+  }
+  .field input:focus, .field textarea:focus{outline:none;border-color:var(--brass-dim);}
+  .field textarea{resize:vertical;min-height:60px;}
+  .row{display:flex;gap:10px;margin-top:6px;}
+
+  .dash-log-title{
+    font-family:'JetBrains Mono', monospace;font-size:12px;letter-spacing:0.1em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== PUBLIC VIEW ===================== -->
+<div class="wrap" id="view-public">
+  <header>
+    <div class="eyebrow">Archive — updated continuously</div>
+    <h1>The Session Log</h1>
+    <p>Every lecture, in order, as it happens. Click through to watch — nothing to download, nothing to lose.</p>
+  </header>
+
+  <div class="log" id="log"></div>
+  <div class="empty" id="empty" style="display:none;">
+    <div class="glyph">&#9679;</div>
+    <p>No sessions logged yet. Once the first lecture is added, it'll appear here.</p>
+  </div>
+
+  <a class="footlink" href="#admin">Uploader access &rarr;</a>
+</div>
+
+<!-- ===================== ADMIN LANDING / LOGIN ===================== -->
+<div id="view-login">
+  <div class="wrap">
+    <div class="login-card">
+      <div class="eyebrow">Admin</div>
+      <h1>Uploader access</h1>
+      <p>Enter the password to add or manage sessions. Everyone else only ever sees the public log.</p>
+      <input type="password" id="login-code" placeholder="Password" autocomplete="off">
+      <div class="login-error" id="login-error">Wrong password — try again.</div>
+      <button class="primary" id="login-btn">Enter</button>
+      <div style="margin-top:16px;">
+        <a class="footlink" href="#" id="back-to-public" style="margin-top:0;">&larr; Back to the log</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ADMIN DASHBOARD ===================== -->
+<div class="wrap" id="view-dashboard">
+  <div class="dash-top">
+    <div>
+      <div class="eyebrow">Admin</div>
+      <h1 style="font-size:32px;">Dashboard</h1>
+    </div>
+    <a class="exit" href="#" id="exit-admin">View public page</a>
+  </div>
+
+  <div class="panel-card">
+    <h2>Add a session</h2>
+    <div class="field">
+      <label for="f-title">Title</label>
+      <input id="f-title" type="text" placeholder="e.g. Week 6 — Thermodynamics">
+    </div>
+    <div class="field">
+      <label for="f-link">Video link (Google Drive share link, YouTube, or Vimeo)</label>
+      <input id="f-link" type="text" placeholder="https://drive.google.com/file/d/.../view?usp=sharing">
+    </div>
+    <div class="field">
+      <label for="f-note">Note (optional)</label>
+      <textarea id="f-note" placeholder="What this session covers, readings, timestamps..."></textarea>
+    </div>
+    <div class="row">
+      <button class="primary" id="save-btn">Save session</button>
+      <button class="ghost" id="clear-btn">Clear</button>
+    </div>
+  </div>
+
+  <div class="dash-log-title">All sessions (<span id="count">0</span>)</div>
+  <div class="log" id="log-admin"></div>
+  <div class="empty" id="empty-admin" style="display:none;">
+    <div class="glyph">&#9679;</div>
+    <p>Nothing logged yet — add your first session above.</p>
+  </div>
+</div>
+
+<script>
+const PASSWORD = "letmein"; // change this to whatever you like
+let lectures = [];
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function persist() {
+  try {
+    await window.storage.set('lectures-list', JSON.stringify(lectures), true);
+  } catch (e) {
+    alert("Couldn't save — please try again.");
+  }
+}
+async function load() {
+  try {
+    const result = await window.storage.get('lectures-list', true);
+    lectures = result ? JSON.parse(result.value) : [];
+  } catch (e) {
+    lectures = [];
+  }
+}
+
+function renderPublic() {
+  const logEl = document.getElementById('log');
+  const emptyEl = document.getElementById('empty');
+  if (lectures.length === 0) { logEl.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  logEl.innerHTML = lectures.map((l, i) => entryHtml(l, i, false)).join('');
+}
+
+function renderAdmin() {
+  const logEl = document.getElementById('log-admin');
+  const emptyEl = document.getElementById('empty-admin');
+  document.getElementById('count').textContent = lectures.length;
+  if (lectures.length === 0) { logEl.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  logEl.innerHTML = lectures.map((l, i) => entryHtml(l, i, true)).join('');
+  logEl.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      lectures = lectures.filter(l => l.id !== btn.dataset.id);
+      await persist();
+      renderAdmin();
+    });
+  });
+}
+
+function getEmbedUrl(link) {
+  // Google Drive share link -> embeddable preview
+  let m = link.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  m = link.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+
+  // YouTube -> embed
+  m = link.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+
+  // Vimeo -> embed
+  m = link.match(/vimeo\.com\/(\d+)/);
+  if (m) return `https://player.vimeo.com/video/${m[1]}`;
+
+  return null;
+}
+
+function entryHtml(l, i, editable) {
+  const numStr = String(lectures.length - i).padStart(2, '0');
+  const embedUrl = getEmbedUrl(l.link);
+  const media = embedUrl
+    ? `<div class="embed-wrap"><iframe src="${escapeHtml(embedUrl)}" allow="autoplay; fullscreen" allowfullscreen></iframe></div>`
+    : `<a class="link" href="${escapeHtml(l.link)}" target="_blank" rel="noopener">Watch session &rarr;</a>`;
+  return `
+    <div class="entry">
+      <div class="num">${numStr}</div>
+      <div class="body">
+        <h3>${escapeHtml(l.title)}</h3>
+        ${media}
+        ${l.note ? `<div class="note">${escapeHtml(l.note)}</div>` : ''}
+        ${editable ? `<button class="del" data-id="${l.id}">remove</button>` : ''}
+      </div>
+      <div class="meta">${formatDate(l.date)}</div>
+    </div>
+  `;
+}
+
+/* ---------- routing between the three views ---------- */
+let authed = false;
+
+function showView() {
+  const isAdminRoute = location.hash === '#admin';
+  document.getElementById('view-public').style.display = isAdminRoute ? 'none' : 'block';
+  document.getElementById('view-login').style.display = (isAdminRoute && !authed) ? 'block' : 'none';
+  document.getElementById('view-dashboard').style.display = (isAdminRoute && authed) ? 'block' : 'none';
+  if (isAdminRoute && authed) renderAdmin();
+  if (!isAdminRoute) renderPublic();
+}
+
+window.addEventListener('hashchange', showView);
+
+document.getElementById('login-btn').addEventListener('click', attemptLogin);
+document.getElementById('login-code').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+function attemptLogin() {
+  const val = document.getElementById('login-code').value;
+  if (val === PASSWORD) {
+    authed = true;
+    document.getElementById('login-error').style.display = 'none';
+    showView();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+document.getElementById('back-to-public').addEventListener('click', (e) => {
+  e.preventDefault();
+  location.hash = '';
+});
+document.getElementById('exit-admin').addEventListener('click', (e) => {
+  e.preventDefault();
+  location.hash = '';
+});
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const title = document.getElementById('f-title').value.trim();
+  const link = document.getElementById('f-link').value.trim();
+  const note = document.getElementById('f-note').value.trim();
+  if (!title || !link) { alert("Title and link are required."); return; }
+  lectures.unshift({ id: 'l_' + Date.now(), title, link, note, date: new Date().toISOString() });
+  await persist();
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-link').value = '';
+  document.getElementById('f-note').value = '';
+  renderAdmin();
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-link').value = '';
+  document.getElementById('f-note').value = '';
+});
+
+(async function init() {
+  await load();
+  showView();
+})();
+</script>
+</body>
+</html>
